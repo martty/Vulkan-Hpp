@@ -28,11 +28,11 @@ cmake_minimum_required(VERSION 3.2)
 
 project(VulkanHppGenerator)
 
-file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Vulkan-Docs/src/spec/vk.xml vk_spec)
+file(TO_NATIVE_PATH ${CMAKE_SOURCE_DIR}/ext/Vulkan-Hpp/Vulkan-Docs/src/spec/vk.xml vk_spec)
 string(REPLACE "\\" "\\\\" vk_spec ${vk_spec})
 add_definitions(-DVK_SPEC="${vk_spec}")
 
-file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/vulkan/vulkan.hpp vulkan_hpp)
+file(TO_NATIVE_PATH ${CMAKE_SOURCE_DIR}/include/vulkan/vulkan.hpp vulkan_hpp)
 string(REPLACE "\\" "\\\\" vulkan_hpp ${vulkan_hpp})
 add_definitions(-DVULKAN_HPP="${vulkan_hpp}")
 
@@ -66,4 +66,9 @@ add_executable(VulkanHppGenerator
 
 set_property(TARGET VulkanHppGenerator PROPERTY CXX_STANDARD 11)
 
-target_include_directories(VulkanHppGenerator PRIVATE "${CMAKE_SOURCE_DIR}/tinyxml2")
+target_include_directories(VulkanHppGenerator PRIVATE tinyxml2)
+ADD_CUSTOM_COMMAND( TARGET VulkanHppGenerator
+					POST_BUILD
+                    COMMAND VulkanHppGenerator
+					WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/ext/Vulkan-Hpp
+                    COMMENT "Generating vulkan.hpp" )
