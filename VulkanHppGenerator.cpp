@@ -30,23 +30,23 @@
 
 #include <tinyxml2.h>
 
+const std::string enumParseHeader = R"( 
+  inline eastl::set<std::string> _parse_enum(const std::string& from) { 
+    eastl::set<std::string> out; 
+    auto r = std::regex("\\s*(\\S*)\\s*\\|?"); 
+    auto words_begin = std::sregex_iterator(from.begin(), from.end(), r); 
+    auto words_end = std::sregex_iterator(); 
+    auto dist = std::distance(words_begin, words_end); 
+ 
+    for (std::sregex_iterator i = words_begin; i != words_end; ++i) { 
+      auto match = *i; 
+      assert(match.size() == 2); 
+      if(match[1].str() != "") 
+        out.insert(match[1].str()); 
+    } 
+    return out; 
+  } 
 )";
-  }
-	  return out;
-	  }
-		    out.insert(match[1].str());
-		  if(match[1].str() != "")
-		  assert(match.size() == 2);
-	  for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-		  auto match = *i;
-
-	  auto dist = std::distance(words_begin, words_end);
-	  auto words_begin = std::sregex_iterator(from.begin(), from.end(), r);
-	  auto words_end = std::sregex_iterator();
-	  auto r = std::regex("\\s*(\\S*)\\s*\\|?");
-	  eastl::set<std::string> out;
-	inline eastl::set<std::string> _parse_enum(const std::string& from) {
-const std::string enumParseHeader = R"(
 
 const std::string exceptionHeader = R"(
 #if defined(_MSC_VER) && (_MSC_VER == 1800)
@@ -310,13 +310,13 @@ const std::string arrayProxyHeader = R"(
     {}
 
     template <class Allocator = std::allocator<typename std::remove_const<T>::type>>
-    ArrayProxy(std::vector<typename std::remove_const<T>::type, Allocator> & data)
+    ArrayProxy(eastl::vector<typename std::remove_const<T>::type, Allocator> & data)
       : m_count(static_cast<uint32_t>(data.size()))
       , m_ptr(data.data())
     {}
 
     template <class Allocator = std::allocator<typename std::remove_const<T>::type>>
-    ArrayProxy(std::vector<typename std::remove_const<T>::type, Allocator> const& data)
+    ArrayProxy(eastl::vector<typename std::remove_const<T>::type, Allocator> const& data)
       : m_count(static_cast<uint32_t>(data.size()))
       , m_ptr(data.data())
     {}
@@ -2745,7 +2745,7 @@ void writeFunctionBodyUnique(std::ostream & os, std::string const& indentation, 
   if (returnsVector)
   {
     // if a vector of data is returned, use a local variable to hold the returned data from the non-unique function call
-    os << indentation << "  std::vector<" << type << ",Allocator> " << typeValue << "s = ";
+    os << indentation << "  eastl::vector<" << type << ",Allocator> " << typeValue << "s = ";
   }
   else
   {
@@ -2780,7 +2780,7 @@ void writeFunctionBodyUnique(std::ostream & os, std::string const& indentation, 
   if (returnsVector)
   {
     std::string const stringTemplate = R"(;
-${i}  std::vector<Unique${type}> unique${type}s;
+${i}  eastl::vector<Unique${type}> unique${type}s;
 ${i}  unique${type}s.reserve( ${typeValue}s.size() );
 ${i}  for ( auto ${typeValue} : ${typeValue}s )
 ${i}  {
@@ -3583,30 +3583,30 @@ void writeEnumsToString(std::ostream & os, EnumData const& enumData)
     os << "    default: return \"invalid\";" << std::endl
         << "    }" << std::endl;
   }
-  ofs << "  }" << std::endl;
+  os << "  }" << std::endl;
 
-  ofs << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << enumData.name << "& value)" << std::endl
+  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << enumData.name << "& value)" << std::endl
       << "  {" << std::endl;
   if (enumData.members.empty())
   {
-    ofs << "    return;" << std::endl;
+    os << "    return;" << std::endl;
   }
   else
   {
-	ofs << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
+	os << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
     for (auto itMember = enumData.members.begin(); itMember != enumData.members.end(); ++itMember)
     {
 	  auto lcasem = itMember->name.substr(1);
       std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
-      ofs << "    if(from == \"" << lcasem << "\") value = " << enumData.name << "::" << itMember->name <<";" << std::endl;
+      os << "    if(from == \"" << lcasem << "\") value = " << enumData.name << "::" << itMember->name <<";" << std::endl;
     }
   }
-  ofs << "  }" << std::endl;
+  os << "  }" << std::endl;
 
-  ofs << "  template <class Archive> std::string save_minimal(Archive const &, const " << enumData.name << "& Enum){ return vk::to_string(Enum); }" << std::endl;
-  ofs << "  template <class Archive> void load_minimal(Archive const &, " << enumData.name << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
-  leaveProtect(ofs, enumData.protect);
-  ofs << std::endl;
+  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << enumData.name << "& Enum){ return vk::to_string(Enum); }" << std::endl;
+  os << "  template <class Archive> void load_minimal(Archive const &, " << enumData.name << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
+  leaveProtect(os, enumData.protect);
+  os << std::endl;
 }
 
 void writeFlagsToString(std::ostream & os, std::string const& flagsName, EnumData const &enumData)
@@ -3633,32 +3633,32 @@ void writeFlagsToString(std::ostream & os, std::string const& flagsName, EnumDat
     // cut off the last three characters from the result (being " | ")
     os << "    return \"{\" + result.substr(0, result.size() - 3) + \"}\";" << std::endl;
   }
-  ofs << "  }" << std::endl;
+  os << "  }" << std::endl;
   // from_string
-  ofs << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << flagsName << "& value)" << std::endl
+  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << flagsName << "& value)" << std::endl
       << "  {" << std::endl;
   if (enumData.members.empty())
   {
-    ofs << "    return;" << std::endl;
+    os << "    return;" << std::endl;
   }
   else
   {
-	ofs << "    value = {};" << std::endl;
-	ofs << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
-	ofs << "    auto words = _parse_enum(lcase);" << std::endl;
+	os << "    value = {};" << std::endl;
+	os << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
+	os << "    auto words = _parse_enum(lcase);" << std::endl;
     for (auto itMember = enumData.members.begin(); itMember != enumData.members.end(); ++itMember)
     {
 	  auto lcasem = itMember->name.substr(1);
       std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
-      ofs << "    if(words.find(\"" << lcasem << "\") != words.end()) value |= " << enumData.name << "::" << itMember->name <<";" << std::endl;
+      os << "    if(words.find(\"" << lcasem << "\") != words.end()) value |= " << enumData.name << "::" << itMember->name <<";" << std::endl;
     }
   }
-  ofs << "  }" << std::endl;
-  ofs << "  template <class Archive> std::string save_minimal(Archive const &, const " << flagsName << "& Enum){ return vk::to_string(Enum); }" << std::endl;
-  ofs << "  template <class Archive> void load_minimal(Archive const &, " << flagsName << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
+  os << "  }" << std::endl;
+  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << flagsName << "& Enum){ return vk::to_string(Enum); }" << std::endl;
+  os << "  template <class Archive> void load_minimal(Archive const &, " << flagsName << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
 
-  leaveProtect(ofs, enumData.protect);
-  ofs << std::endl;
+  leaveProtect(os, enumData.protect);
+  os << std::endl;
 }
 
 void writeTypeFlags(std::ostream & os, std::string const& flagsName, FlagData const& flagData, EnumData const& enumData)
@@ -4190,9 +4190,6 @@ int main( int argc, char **argv )
       << R"(
 #ifndef VULKAN_HPP
 #define VULKAN_HPP
-		<< "# include \"EASTL/vector.h\"" << std::endl
-		<< "# include \"EASTL/set.h\"" << std::endl
-
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -4204,10 +4201,13 @@ int main( int argc, char **argv )
 #include <system_error>
 #include <tuple>
 #include <type_traits>
+#include <regex>
 #include <vulkan/vulkan.h>
 #ifndef VULKAN_HPP_DISABLE_ENHANCED_MODE
 # include <memory>
 # include <vector>
+# include <EASTL/vector.h>
+# include <EASTL/set.h>
 #endif /*VULKAN_HPP_DISABLE_ENHANCED_MODE*/
 )";
 
