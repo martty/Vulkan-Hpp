@@ -2922,6 +2922,26 @@ void VulkanHppGenerator::writeBitmaskToString(std::ostream & os, std::string con
     os << "    return \"{\" + result.substr(0, result.size() - 3) + \"}\";" << std::endl;
   }
   os << "  }" << std::endl;
+
+  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << bitmaskName << "& value)" << std::endl
+      << "  {" << std::endl;
+  if (enumData.values.empty())
+  {
+  }
+  else if (enumData.bitmask) // for bitmask enums
+  {
+	os << "    value = {};" << std::endl;
+	os << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
+	os << "    auto words = _parse_enum(lcase);" << std::endl;
+	for (auto itMember = enumData.values.begin(); itMember != enumData.values.end(); ++itMember) {
+	  auto lcasem = itMember->name.substr(1);
+	  std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
+	  os << "    if(words.find(\"" << lcasem << "\") != words.end()) value |= " << enumData.name << "::" << itMember->name << ";" << std::endl;
+	}
+  }
+  os << "  }" << std::endl;
+  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << bitmaskName << "& Enum){ return vk::to_string(Enum); }" << std::endl;
+  os << "  template <class Archive> void load_minimal(Archive const &, " << bitmaskName << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
   leaveProtect(os, enumData.protect);
   os << std::endl;
 }
@@ -3127,6 +3147,26 @@ void VulkanHppGenerator::writeEnumsToString(std::ostream & os, EnumData const& e
       << "    }" << std::endl;
   }
   os << "  }" << std::endl;
+  // from_string for flags
+  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << enumData.name << "& value)" << std::endl
+      << "  {" << std::endl;
+  if (enumData.values.empty())
+  {
+  }
+  else if(enumData.bitmask) // for bitmask enums
+  {
+  } else { // for normal enums
+	  os << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
+	  for (auto itMember = enumData.values.begin(); itMember != enumData.values.end(); ++itMember) {
+		  auto lcasem = itMember->name.substr(1);
+		  std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
+		  os << "    if(lcase == \"" << lcasem << "\") value = " << enumData.name << "::" << itMember->name << "; return;" << std::endl;
+	  }
+  }
+  os << "  }" << std::endl;
+  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << enumData.name << "& Enum){ return vk::to_string(Enum); }" << std::endl;
+  os << "  template <class Archive> void load_minimal(Archive const &, " << enumData.name << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
+
   leaveProtect(os, enumData.protect);
   os << std::endl;
 }
@@ -4207,25 +4247,6 @@ void VulkanHppGenerator::writeTypeBitmask(std::ostream & os, std::string const& 
       << "  using " << bitmaskData.alias << " = " << bitmaskName << ";" << std::endl;
   }
 
-  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << bitmaskName << "& value)" << std::endl
-      << "  {" << std::endl;
-  if (enumData.values.empty())
-  {
-  }
-  else if (enumData.bitmask) // for bitmask enums
-  {
-	os << "    value = {};" << std::endl;
-	os << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
-	os << "    auto words = _parse_enum(lcase);" << std::endl;
-	for (auto itMember = enumData.values.begin(); itMember != enumData.values.end(); ++itMember) {
-	  auto lcasem = itMember->name.substr(1);
-	  std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
-	  os << "    if(words.find(\"" << lcasem << "\") != words.end()) value |= " << enumData.name << "::" << itMember->name << ";" << std::endl;
-	}
-  }
-  os << "  }" << std::endl;
-  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << bitmaskName << "& Enum){ return vk::to_string(Enum); }" << std::endl;
-  os << "  template <class Archive> void load_minimal(Archive const &, " << bitmaskName << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
   leaveProtect(os, bitmaskData.protect);
   os << std::endl;
 }
@@ -4324,25 +4345,6 @@ void VulkanHppGenerator::writeTypeEnum(std::ostream & os, EnumData const& enumDa
 	  os << std::endl;
   }
   os << "  };" << std::endl;
-  // from_string for flags
-  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << enumData.name << "& value)" << std::endl
-      << "  {" << std::endl;
-  if (enumData.values.empty())
-  {
-  }
-  else if(enumData.bitmask) // for bitmask enums
-  {
-  } else { // for normal enums
-	  os << "    auto lcase = from; std::transform(from.begin(), from.end(), lcase.begin(), ::tolower);" << std::endl;
-	  for (auto itMember = enumData.values.begin(); itMember != enumData.values.end(); ++itMember) {
-		  auto lcasem = itMember->name.substr(1);
-		  std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
-		  os << "    if(lcase == \"" << lcasem << "\") value = " << enumData.name << "::" << itMember->name << "; return;" << std::endl;
-	  }
-  }
-  os << "  }" << std::endl;
-  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << enumData.name << "& Enum){ return vk::to_string(Enum); }" << std::endl;
-  os << "  template <class Archive> void load_minimal(Archive const &, " << enumData.name << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
 
   leaveProtect(os, enumData.protect);
   os << std::endl;
