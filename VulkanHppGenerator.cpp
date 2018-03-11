@@ -3160,7 +3160,7 @@ void VulkanHppGenerator::writeEnumsToString(std::ostream & os, EnumData const& e
 	  for (auto itMember = enumData.values.begin(); itMember != enumData.values.end(); ++itMember) {
 		  auto lcasem = itMember->name.substr(1);
 		  std::transform(lcasem.begin(), lcasem.end(), lcasem.begin(), ::tolower);
-		  os << "    if(lcase == \"" << lcasem << "\") value = " << enumData.name << "::" << itMember->name << "; return;" << std::endl;
+		  os << "    if(lcase == \"" << lcasem << "\") { value = " << enumData.name << "::" << itMember->name << "; return; }" << std::endl;
 	  }
   }
   os << "  }" << std::endl;
