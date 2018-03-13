@@ -2957,7 +2957,7 @@ void VulkanHppGenerator::writeBitmaskToString(std::ostream & os, std::string con
 void VulkanHppGenerator::writeCall(std::ostream & os, CommandData const& commandData, bool firstCall, bool singular)
 {
   // the original function call
-  os << "d.vk" << startUpperCase(commandData.fullName) << "( ";
+  os << "::vk" << startUpperCase(commandData.fullName) << "( ";
 
   if (!commandData.className.empty())
   {
@@ -3267,7 +3267,7 @@ R"(${i}  static_assert( sizeof( ${type} ) <= sizeof( Unique${type} ), "${type} i
 ${i}  std::vector<Unique${type}, Allocator> ${typeVariable}s;
 ${i}  ${typeVariable}s.reserve( ${vectorSize} );
 ${i}  ${type}* buffer = reinterpret_cast<${type}*>( reinterpret_cast<char*>( ${typeVariable}s.data() ) + ${vectorSize} * ( sizeof( Unique${type} ) - sizeof( ${type} ) ) );
-${i}  Result result = static_cast<Result>(d.vk${command}( m_device, ${arguments}, reinterpret_cast<Vk${type}*>( buffer ) ) );
+${i}  Result result = static_cast<Result>(::vk${command}( m_device, ${arguments}, reinterpret_cast<Vk${type}*>( buffer ) ) );
 
 ${i}  ${Deleter}<${DeleterTemplate}> deleter( *this, ${deleterArg} );
 ${i}  for ( size_t i=0 ; i<${vectorSize} ; i++ )
@@ -3644,7 +3644,7 @@ void VulkanHppGenerator::writeFunctionBodyStandard(std::ostream & os, std::strin
   }
 
   // call the original function
-  os << "d.vk" << startUpperCase(commandData.fullName) << "( ";
+  os << "::vk" << startUpperCase(commandData.fullName) << "( ";
 
   if (!commandData.className.empty())
   {
@@ -3842,16 +3842,6 @@ void VulkanHppGenerator::writeFunctionHeaderArgumentsEnhanced(std::ostream & os,
         argEncountered = true;
       }
     }
-
-    if (argEncountered)
-    {
-      os << ", ";
-    }
-  }
-  os << "Dispatch const &d";
-  if (withDefaults)
-  {
-    os << " = Dispatch()";
   }
 
   os << " ";
@@ -3897,16 +3887,6 @@ void VulkanHppGenerator::writeFunctionHeaderArgumentsStandard(std::ostream & os,
       }
     }
     argEncountered = true;
-  }
-  if (argEncountered)
-  {
-    os << ", ";
-  }
-
-  os << "Dispatch const &d";
-  if (withDefaults)
-  {
-    os << " = Dispatch() ";
   }
 }
 
@@ -3972,16 +3952,15 @@ void VulkanHppGenerator::writeFunctionHeaderReturnType(std::ostream & os, std::s
 
 void VulkanHppGenerator::writeFunctionHeaderTemplate(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool enhanced, bool unique, bool withDefault, bool isStructureChain)
 {
-  std::string dispatch = withDefault ? std::string("typename Dispatch = DispatchLoaderStatic") : std::string("typename Dispatch");
   if (enhanced && isStructureChain)
   {
-    os << indentation << "template <typename ...T, " << dispatch << ">" << std::endl;
+    os << indentation << "template <typename ...T>" << std::endl;
   }
   else if (enhanced && (commandData.templateParam != ~0) && ((commandData.templateParam != commandData.returnParam) || (commandData.enhancedReturnType == "Result")))
   {
     // if there's a template parameter, not being the return parameter or where the enhanced return type is 'Result' -> templatize on type 'T'
     assert(commandData.enhancedReturnType.find("Allocator") == std::string::npos);
-    os << indentation << "template <typename T, " << dispatch << ">" << std::endl;
+    os << indentation << "template <typename T>" << std::endl;
   }
   else if (enhanced && (commandData.enhancedReturnType.find("Allocator") != std::string::npos))
   {
@@ -3993,12 +3972,7 @@ void VulkanHppGenerator::writeFunctionHeaderTemplate(std::ostream & os, std::str
       // for the default type get the type from the enhancedReturnType, which is of the form 'std::vector<Type,Allocator>'
       os << " = eastl::allocator";
     }
-    os << ", " << dispatch;
     os << "> " << std::endl;
-  }
-  else
-  {
-    os << indentation << "template<" << dispatch << ">" << std::endl;
   }
 }
 
@@ -5340,13 +5314,9 @@ int main( int argc, char **argv )
       << createResultValueHeader
       << deleterClassString;
 
-    generator.writeDelegationClassStatic(ofs);
-
     generator.writeTypeDeclarations(ofs, defaultValues);
     generator.writeStructureChainValidation(ofs);
 	generator.writeToStringFunctionDeclarations(ofs);
-
-    generator.writeDelegationClassDynamic(ofs);
 
 	ofs << "} // namespace VULKAN_HPP_NAMESPACE" << std::endl
       << std::endl
