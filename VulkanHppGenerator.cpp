@@ -2896,12 +2896,22 @@ void VulkanHppGenerator::writeArguments(std::ostream & os, CommandData const& co
     encounteredArgument = true;
   }
 }
-
+void VulkanHppGenerator::writeBitmaskToStringDeclaration(std::ostream & os, std::string const& bitmaskName, EnumData const &enumData)
+{
+  // the helper functions to make strings out of flag values
+  enterProtect(os, enumData.protect);
+  os << "  std::string to_string(" << bitmaskName << (enumData.values.empty() ? ");" : " value);") << std::endl;
+  os << "  void from_string(const std::string& from, " << bitmaskName << "& value);" << std::endl;
+  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << bitmaskName << "& Enum){ return vk::to_string(Enum); }" << std::endl;
+  os << "  template <class Archive> void load_minimal(Archive const &, " << bitmaskName << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
+  leaveProtect(os, enumData.protect);
+  os << std::endl;
+}
 void VulkanHppGenerator::writeBitmaskToString(std::ostream & os, std::string const& bitmaskName, EnumData const &enumData)
 {
   // the helper functions to make strings out of flag values
   enterProtect(os, enumData.protect);
-  os << "  VULKAN_HPP_INLINE std::string to_string(" << bitmaskName << (enumData.values.empty() ? ")" : " value)") << std::endl
+  os << "  std::string to_string(" << bitmaskName << (enumData.values.empty() ? ")" : " value)") << std::endl
     << "  {" << std::endl;
   if (enumData.values.empty())
   {
@@ -2923,7 +2933,7 @@ void VulkanHppGenerator::writeBitmaskToString(std::ostream & os, std::string con
   }
   os << "  }" << std::endl;
 
-  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << bitmaskName << "& value)" << std::endl
+  os << "  void from_string(const std::string& from, " << bitmaskName << "& value)" << std::endl
       << "  {" << std::endl;
   if (enumData.values.empty())
   {
@@ -2940,8 +2950,6 @@ void VulkanHppGenerator::writeBitmaskToString(std::ostream & os, std::string con
 	}
   }
   os << "  }" << std::endl;
-  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << bitmaskName << "& Enum){ return vk::to_string(Enum); }" << std::endl;
-  os << "  template <class Archive> void load_minimal(Archive const &, " << bitmaskName << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
   leaveProtect(os, enumData.protect);
   os << std::endl;
 }
@@ -3123,11 +3131,22 @@ void VulkanHppGenerator::writeCallVulkanTypeParameter(std::ostream & os, ParamDa
   }
 }
 
+void VulkanHppGenerator::writeEnumsToStringDeclaration(std::ostream & os, EnumData const& enumData)
+{
+ // the helper functions to make strings out of enum values
+  enterProtect(os, enumData.protect);
+  os << "  std::string to_string(" << enumData.name << (enumData.values.empty() ? ");" : " value);") << std::endl;
+  os << "  void from_string(const std::string& from, " << enumData.name << "& value);" << std::endl;
+  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << enumData.name << "& Enum){ return vk::to_string(Enum); }" << std::endl;
+  os << "  template <class Archive> void load_minimal(Archive const &, " << enumData.name << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
+  leaveProtect(os, enumData.protect);
+  os << std::endl;
+}
 void VulkanHppGenerator::writeEnumsToString(std::ostream & os, EnumData const& enumData)
 {
   // the helper functions to make strings out of enum values
   enterProtect(os, enumData.protect);
-  os << "  VULKAN_HPP_INLINE std::string to_string(" << enumData.name << (enumData.values.empty() ? ")" : " value)") << std::endl
+  os << "  std::string to_string(" << enumData.name << (enumData.values.empty() ? ")" : " value)") << std::endl
     << "  {" << std::endl;
   if (enumData.values.empty())
   {
@@ -3147,8 +3166,18 @@ void VulkanHppGenerator::writeEnumsToString(std::ostream & os, EnumData const& e
       << "    }" << std::endl;
   }
   os << "  }" << std::endl;
-  // from_string for flags
-  os << "  VULKAN_HPP_INLINE void from_string(const std::string& from, " << enumData.name << "& value)" << std::endl
+  os << std::endl;
+
+  leaveProtect(os, enumData.protect);
+}
+
+void VulkanHppGenerator::writeEnumsFromString(std::ostream & os, EnumData const& enumData)
+{
+  // the helper functions to make enum values out of strings
+  enterProtect(os, enumData.protect);
+
+  // from_string for enums
+  os << "  void from_string(const std::string& from, " << enumData.name << "& value)" << std::endl
       << "  {" << std::endl;
   if (enumData.values.empty())
   {
@@ -3164,11 +3193,8 @@ void VulkanHppGenerator::writeEnumsToString(std::ostream & os, EnumData const& e
 	  }
   }
   os << "  }" << std::endl;
-  os << "  template <class Archive> std::string save_minimal(Archive const &, const " << enumData.name << "& Enum){ return vk::to_string(Enum); }" << std::endl;
-  os << "  template <class Archive> void load_minimal(Archive const &, " << enumData.name << "& Enum, std::string const& value) { vk::from_string(value, Enum); }" << std::endl;
-
-  leaveProtect(os, enumData.protect);
   os << std::endl;
+  leaveProtect(os, enumData.protect);
 }
 
 // Intended only for `enum class Result`!
@@ -3981,17 +4007,25 @@ void VulkanHppGenerator::writeResultEnum(std::ostream & os)
   std::list<DependencyData>::const_iterator it = std::find_if(m_dependencies.begin(), m_dependencies.end(), [](DependencyData const& dp) { return dp.name == "Result"; });
   assert(it != m_dependencies.end());
   writeTypeEnum(os, m_enums.find(it->name)->second);
-  writeEnumsToString(os, m_enums.find(it->name)->second);
+  writeEnumsToStringDeclaration(os, m_enums.find(it->name)->second);
   os << "#ifndef VULKAN_HPP_NO_EXCEPTIONS";
   os << exceptionHeader;
   os << exceptionClassesHeader;
   writeExceptionsForEnum(os, m_enums.find(it->name)->second);
   writeThrowExceptions(os, m_enums.find(it->name)->second);
   os << "#endif" << std::endl;
-  m_dependencies.erase(it);
 }
 
-void VulkanHppGenerator::writeStructConstructor(std::ostream & os, std::string const& name, StructData const& structData, std::map<std::string, std::string> const& defaultValues)
+void VulkanHppGenerator::writeResultEnumStringify(std::ostream & os) 
+{
+	std::list<DependencyData>::const_iterator it = std::find_if(m_dependencies.begin(), m_dependencies.end(), [](DependencyData const& dp) { return dp.name == "Result"; });
+	assert(it != m_dependencies.end());
+	writeEnumsToString(os, m_enums.find(it->name)->second);
+	writeEnumsFromString(os, m_enums.find(it->name)->second);
+	m_dependencies.erase(it);
+}
+
+void VulkanHppGenerator::writeStructConstructorDeclaration(std::ostream & os, std::string const& name, StructData const& structData, std::map<std::string, std::string> const& defaultValues)
 {
   // the constructor with all the elements as arguments, with defaults
   os << "    " << name << "( ";
@@ -4028,6 +4062,50 @@ void VulkanHppGenerator::writeStructConstructor(std::ostream & os, std::string c
           os << ", " << defaultIt->second;
         }
         os << " } }";
+      }
+      listedArgument = true;
+    }
+  }
+  os << " );" << std::endl;
+
+  std::string templateString =
+    R"(    ${name}( Vk${name} const & rhs );
+    ${name}& operator=( Vk${name} const & rhs );
+)";
+
+  os << replaceWithMap(templateString, { { "name", name } });
+}
+
+void VulkanHppGenerator::writeStructConstructor(std::ostream & os, std::string const& name, StructData const& structData, std::map<std::string, std::string> const& defaultValues)
+{
+  // the constructor with all the elements as arguments, with defaults
+  os << "    " << name << "::" << name << "( ";
+  bool listedArgument = false;
+  for (size_t i = 0; i < structData.members.size(); i++)
+  {
+    if (listedArgument)
+    {
+      os << ", ";
+    }
+    // skip members 'pNext' and 'sType', as they are never explicitly set
+    if ((structData.members[i].name != "pNext") && (structData.members[i].name != "sType"))
+    {
+      // find a default value for the given pure type
+      std::map<std::string, std::string>::const_iterator defaultIt = defaultValues.find(structData.members[i].pureType);
+      assert(defaultIt != defaultValues.end());
+
+      if (structData.members[i].arraySize.empty())
+      {
+        // the arguments name get a trailing '_', to distinguish them from the actual struct members
+        // pointer arguments get a nullptr as default
+        os << structData.members[i].type << " " << structData.members[i].name << "_";
+      }
+      else
+      {
+        // array members are provided as const reference to a std::array
+        // the arguments name get a trailing '_', to distinguish them from the actual struct members
+        // list as many default values as there are elements in the array
+        os << "std::array<" << structData.members[i].type << "," << structData.members[i].arraySize << "> const& " << structData.members[i].name << "_";
       }
       listedArgument = true;
     }
@@ -4070,12 +4148,12 @@ void VulkanHppGenerator::writeStructConstructor(std::ostream & os, std::string c
   os << "    }\n\n";
 
   std::string templateString =
-    R"(    ${name}( Vk${name} const & rhs )
+    R"(    ${name}::${name}( Vk${name} const & rhs )
     {
       memcpy( this, &rhs, sizeof( ${name} ) );
     }
 
-    ${name}& operator=( Vk${name} const & rhs )
+    ${name}& ${name}::operator=( Vk${name} const & rhs )
     {
       memcpy( this, &rhs, sizeof( ${name} ) );
       return *this;
@@ -4085,12 +4163,31 @@ void VulkanHppGenerator::writeStructConstructor(std::ostream & os, std::string c
   os << replaceWithMap(templateString, { { "name", name } });
 }
 
-void VulkanHppGenerator::writeStructSetter(std::ostream & os, std::string const& structureName, MemberData const& memberData)
+void VulkanHppGenerator::writeStructSetterDeclaration(std::ostream & os, std::string const& structureName, MemberData const& memberData)
 {
   if (memberData.type != "StructureType") // filter out StructureType, which is supposed to be immutable !
   {
     // the setters return a reference to the structure
     os << "    " << structureName << "& set" << startUpperCase(memberData.name) << "( ";
+    if (memberData.arraySize.empty())
+    {
+      os << memberData.type << " ";
+    }
+    else
+    {
+      os << "std::array<" << memberData.type << "," << memberData.arraySize << "> ";
+    }
+    // add a trailing '_' to the argument to distinguish it from the structure member
+	os << memberData.name << "_ );" << std::endl;
+  }
+}
+
+void VulkanHppGenerator::writeStructSetter(std::ostream & os, std::string const& structureName, MemberData const& memberData)
+{
+  if (memberData.type != "StructureType") // filter out StructureType, which is supposed to be immutable !
+  {
+    // the setters return a reference to the structure
+    os << "    " << structureName << "& " << structureName << "::set" << startUpperCase(memberData.name) << "( ";
     if (memberData.arraySize.empty())
     {
       os << memberData.type << " ";
@@ -4181,6 +4278,23 @@ void VulkanHppGenerator::writeThrowExceptions(std::ostream & os, EnumData const&
 )";
   leaveProtect(os, enumData.protect);
 }
+void VulkanHppGenerator::writeToStringFunctionDeclarations(std::ostream & os) 
+{
+   // write all the to_string functions for enums and flags
+  for (auto it = m_dependencies.begin(); it != m_dependencies.end(); ++it)
+  {
+    switch (it->category)
+    {
+    case DependencyData::Category::BITMASK:
+      writeBitmaskToStringDeclaration(os, it->name, m_enums.find(*it->dependencies.begin())->second);
+      break;
+    case DependencyData::Category::ENUM:
+      assert(m_enums.find(it->name) != m_enums.end());
+      writeEnumsToStringDeclaration(os, m_enums.find(it->name)->second);
+      break;
+    }
+  }
+}
 
 void VulkanHppGenerator::writeToStringFunctions(std::ostream & os)
 {
@@ -4195,6 +4309,7 @@ void VulkanHppGenerator::writeToStringFunctions(std::ostream & os)
     case DependencyData::Category::ENUM:
       assert(m_enums.find(it->name) != m_enums.end());
       writeEnumsToString(os, m_enums.find(it->name)->second);
+      writeEnumsFromString(os, m_enums.find(it->name)->second);
       break;
     }
   }
@@ -4500,7 +4615,7 @@ ${commands}
   leaveProtect(os, handleData.protect);
 }
 
-void VulkanHppGenerator::writeTypes(std::ostream & os, std::map<std::string, std::string> const& defaultValues)
+void VulkanHppGenerator::writeTypeDeclarations(std::ostream & os, std::map<std::string, std::string> const& defaultValues)
 {
   assert(m_deleterTypes.find("") != m_deleterTypes.end());
 
@@ -4531,6 +4646,50 @@ void VulkanHppGenerator::writeTypes(std::ostream & os, std::map<std::string, std
       writeTypeScalar(os, *it);
       break;
     case DependencyData::Category::STRUCT:
+      writeTypeStructDeclaration(os, *it, defaultValues);
+      break;
+    case DependencyData::Category::UNION:
+      assert(m_structs.find(it->name) != m_structs.end());
+      writeTypeUnionDeclaration(os, *it, defaultValues);
+      break;
+    default:
+      assert(false);
+      break;
+    }
+  }
+}
+
+void VulkanHppGenerator::writeTypes(std::ostream & os, std::map<std::string, std::string> const& defaultValues)
+{
+  assert(m_deleterTypes.find("") != m_deleterTypes.end());
+
+  for (std::list<DependencyData>::const_iterator it = m_dependencies.begin(); it != m_dependencies.end(); ++it)
+  {
+    switch (it->category)
+    {
+    case DependencyData::Category::BITMASK:
+      assert(m_bitmasks.find(it->name) != m_bitmasks.end());
+      //writeTypeBitmask(os, it->name, m_bitmasks.find(it->name)->second, m_enums.find(generateEnumNameForFlags(it->name))->second);
+      break;
+    case DependencyData::Category::COMMAND:
+      //writeTypeCommand(os, *it);
+      break;
+    case DependencyData::Category::ENUM:
+      assert(m_enums.find(it->name) != m_enums.end());
+      //writeTypeEnum(os, m_enums.find(it->name)->second);
+      break;
+    case DependencyData::Category::FUNC_POINTER:
+    case DependencyData::Category::REQUIRED:
+      // skip FUNC_POINTER and REQUIRED, they just needed to be in the dependencies list to resolve dependencies
+      break;
+    case DependencyData::Category::HANDLE:
+      assert(m_handles.find(it->name) != m_handles.end());
+      //writeTypeHandle(os, *it, m_handles.find(it->name)->second);
+      break;
+    case DependencyData::Category::SCALAR:
+      //writeTypeScalar(os, *it);
+      break;
+    case DependencyData::Category::STRUCT:
       writeTypeStruct(os, *it, defaultValues);
       break;
     case DependencyData::Category::UNION:
@@ -4551,7 +4710,7 @@ void VulkanHppGenerator::writeTypeScalar(std::ostream & os, DependencyData const
     << std::endl;
 }
 
-void VulkanHppGenerator::writeTypeStruct(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues)
+void VulkanHppGenerator::writeTypeStructDeclaration(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues)
 {
   std::map<std::string, StructData>::const_iterator it = m_structs.find(dependencyData.name);
   assert(it != m_structs.end());
@@ -4563,7 +4722,7 @@ void VulkanHppGenerator::writeTypeStruct(std::ostream & os, DependencyData const
   // only structs that are not returnedOnly get a constructor!
   if (!it->second.returnedOnly)
   {
-    writeStructConstructor(os, dependencyData.name, it->second, defaultValues);
+    writeStructConstructorDeclaration(os, dependencyData.name, it->second, defaultValues);
   }
 
   // create the setters
@@ -4571,48 +4730,20 @@ void VulkanHppGenerator::writeTypeStruct(std::ostream & os, DependencyData const
   {
     for (size_t i = 0; i<it->second.members.size(); i++)
     {
-      writeStructSetter(os, dependencyData.name, it->second.members[i]);
+      writeStructSetterDeclaration(os, dependencyData.name, it->second.members[i]);
     }
   }
 
   // the cast-operator to the wrapped struct
-  os << "    operator const Vk" << dependencyData.name << "&() const" << std::endl
-    << "    {" << std::endl
-    << "      return *reinterpret_cast<const Vk" << dependencyData.name << "*>(this);" << std::endl
-    << "    }" << std::endl
-    << std::endl;
+  os << "    operator const Vk" << dependencyData.name << "&() const;" << std::endl;
 
   // operator==() and operator!=()
   // only structs without a union as a member can have a meaningfull == and != operation; we filter them out
   if (!containsUnion(dependencyData.name, m_structs))
   {
     // two structs are compared by comparing each of the elements
-    os << "    bool operator==( " << dependencyData.name << " const& rhs ) const" << std::endl
-      << "    {" << std::endl
-      << "      return ";
-    for (size_t i = 0; i < it->second.members.size(); i++)
-    {
-      if (i != 0)
-      {
-        os << std::endl << "          && ";
-      }
-      if (!it->second.members[i].arraySize.empty())
-      {
-        os << "( memcmp( " << it->second.members[i].name << ", rhs." << it->second.members[i].name << ", " << it->second.members[i].arraySize << " * sizeof( " << it->second.members[i].type << " ) ) == 0 )";
-      }
-      else
-      {
-        os << "( " << it->second.members[i].name << " == rhs." << it->second.members[i].name << " )";
-      }
-    }
-    os << ";" << std::endl
-      << "    }" << std::endl
-      << std::endl
-      << "    bool operator!=( " << dependencyData.name << " const& rhs ) const" << std::endl
-      << "    {" << std::endl
-      << "      return !operator==( rhs );" << std::endl
-      << "    }" << std::endl
-      << std::endl;
+	  os << "    bool operator==( " << dependencyData.name << " const& rhs ) const;" << std::endl
+		 << "    bool operator!=( " << dependencyData.name << " const& rhs ) const;" << std::endl;
   }
 
   // the member variables
@@ -4643,13 +4774,81 @@ void VulkanHppGenerator::writeTypeStruct(std::ostream & os, DependencyData const
       os << ";" << std::endl;
     }
   }
-  os << "  };" << std::endl
-    << "  static_assert( sizeof( " << dependencyData.name << " ) == sizeof( Vk" << dependencyData.name << " ), \"struct and wrapper have different size!\" );" << std::endl;
+  os << "  };" << std::endl;
 
   if (!it->second.alias.empty())
   {
     os << std::endl
       << "  using " << it->second.alias << " = " << dependencyData.name << ";" << std::endl;
+  }
+
+  leaveProtect(os, it->second.protect);
+  os << std::endl;
+}
+
+void VulkanHppGenerator::writeTypeStruct(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues)
+{
+  std::map<std::string, StructData>::const_iterator it = m_structs.find(dependencyData.name);
+  assert(it != m_structs.end());
+
+  enterProtect(os, it->second.protect);
+
+
+   os << "  static_assert( sizeof( " << dependencyData.name << " ) == sizeof( Vk" << dependencyData.name << " ), \"struct and wrapper have different size!\" );" << std::endl;
+
+  // only structs that are not returnedOnly get a constructor!
+  if (!it->second.returnedOnly)
+  {
+    writeStructConstructor(os, dependencyData.name, it->second, defaultValues);
+  }
+
+  // create the setters
+  if (!it->second.returnedOnly)
+  {
+    for (size_t i = 0; i<it->second.members.size(); i++)
+    {
+      writeStructSetter(os, dependencyData.name, it->second.members[i]);
+    }
+  }
+
+  // the cast-operator to the wrapped struct
+  os << "    " << dependencyData.name << "::operator const Vk" << dependencyData.name << "&() const" << std::endl
+    << "    {" << std::endl
+    << "      return *reinterpret_cast<const Vk" << dependencyData.name << "*>(this);" << std::endl
+    << "    }" << std::endl
+    << std::endl;
+
+  // operator==() and operator!=()
+  // only structs without a union as a member can have a meaningfull == and != operation; we filter them out
+  if (!containsUnion(dependencyData.name, m_structs))
+  {
+    // two structs are compared by comparing each of the elements
+    os << "    bool " << dependencyData.name << "::operator==( " << dependencyData.name << " const& rhs ) const" << std::endl
+      << "    {" << std::endl
+      << "      return ";
+    for (size_t i = 0; i < it->second.members.size(); i++)
+    {
+      if (i != 0)
+      {
+        os << std::endl << "          && ";
+      }
+      if (!it->second.members[i].arraySize.empty())
+      {
+        os << "( memcmp( " << it->second.members[i].name << ", rhs." << it->second.members[i].name << ", " << it->second.members[i].arraySize << " * sizeof( " << it->second.members[i].type << " ) ) == 0 )";
+      }
+      else
+      {
+        os << "( " << it->second.members[i].name << " == rhs." << it->second.members[i].name << " )";
+      }
+    }
+    os << ";" << std::endl
+      << "    }" << std::endl
+      << std::endl
+      << "    bool " << dependencyData.name << "::operator!=( " << dependencyData.name << " const& rhs ) const" << std::endl
+      << "    {" << std::endl
+      << "      return !operator==( rhs );" << std::endl
+      << "    }" << std::endl
+      << std::endl;
   }
 
   leaveProtect(os, it->second.protect);
@@ -4678,7 +4877,7 @@ void VulkanHppGenerator::writeUniqueTypes(std::ostream &os, std::pair<std::strin
     << std::endl;
 }
 
-void VulkanHppGenerator::writeTypeUnion(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues)
+void VulkanHppGenerator::writeTypeUnionDeclaration(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues)
 {
   std::map<std::string, StructData>::const_iterator it = m_structs.find(dependencyData.name);
   assert(it != m_structs.end());
@@ -4715,35 +4914,18 @@ void VulkanHppGenerator::writeTypeUnion(std::ostream & os, DependencyData const&
         os << " = { {" << defaultIt->second << "} }";
       }
     }
-    os << " )" << std::endl
-      << "    {" << std::endl
-      << "      ";
-    if (it->second.members[i].arraySize.empty())
-    {
-      os << it->second.members[i].name << " = " << it->second.members[i].name << "_";
-    }
-    else
-    {
-      os << "memcpy( &" << it->second.members[i].name << ", " << it->second.members[i].name << "_.data(), " << it->second.members[i].arraySize << " * sizeof( " << it->second.members[i].type << " ) )";
-    }
-    os << ";" << std::endl
-      << "    }" << std::endl
-      << std::endl;
+	os << " );" << std::endl;
   }
 
   for (size_t i = 0; i<it->second.members.size(); i++)
   {
     // one setter per union element
     assert(!it->second.returnedOnly);
-    writeStructSetter(os, dependencyData.name, it->second.members[i]);
+    writeStructSetterDeclaration(os, dependencyData.name, it->second.members[i]);
   }
 
   // the implicit cast operator to the native type
-  os << "    operator Vk" << dependencyData.name << " const& () const" << std::endl
-    << "    {" << std::endl
-    << "      return *reinterpret_cast<const Vk" << dependencyData.name << "*>(this);" << std::endl
-    << "    }" << std::endl
-    << std::endl;
+  os << "    operator const Vk" << dependencyData.name << "&() const;" << std::endl;
 
   // the union member variables
   // if there's at least one Vk... type in this union, check for unrestricted unions support
@@ -4785,6 +4967,58 @@ void VulkanHppGenerator::writeTypeUnion(std::ostream & os, DependencyData const&
     os << "#endif  // VULKAN_HPP_HAS_UNRESTRICTED_UNIONS" << std::endl;
   }
   os << "  };" << std::endl
+    << std::endl;
+}
+
+
+
+void VulkanHppGenerator::writeTypeUnion(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues)
+{
+  std::map<std::string, StructData>::const_iterator it = m_structs.find(dependencyData.name);
+  assert(it != m_structs.end());
+
+  for (size_t i = 0; i<it->second.members.size(); i++)
+  {
+    // one constructor per union element
+    os << "    " << dependencyData.name << "::" << dependencyData.name << "( ";
+    if (it->second.members[i].arraySize.empty())
+    {
+      os << it->second.members[i].type << " ";
+    }
+    else
+    {
+      os << "const std::array<" << it->second.members[i].type << "," << it->second.members[i].arraySize << ">& ";
+    }
+    os << it->second.members[i].name << "_";
+
+    os << " )" << std::endl
+      << "    {" << std::endl
+      << "      ";
+    if (it->second.members[i].arraySize.empty())
+    {
+      os << it->second.members[i].name << " = " << it->second.members[i].name << "_";
+    }
+    else
+    {
+      os << "memcpy( &" << it->second.members[i].name << ", " << it->second.members[i].name << "_.data(), " << it->second.members[i].arraySize << " * sizeof( " << it->second.members[i].type << " ) )";
+    }
+    os << ";" << std::endl
+      << "    }" << std::endl
+      << std::endl;
+  }
+
+  for (size_t i = 0; i<it->second.members.size(); i++)
+  {
+    // one setter per union element
+    assert(!it->second.returnedOnly);
+    writeStructSetter(os, dependencyData.name, it->second.members[i]);
+  }
+
+  // the implicit cast operator to the native type
+  os << "    " << dependencyData.name << "::operator const Vk" << dependencyData.name << "&() const" << std::endl
+    << "    {" << std::endl
+    << "      return *reinterpret_cast<const Vk" << dependencyData.name << "*>(this);" << std::endl
+    << "    }" << std::endl
     << std::endl;
 }
 
@@ -5031,7 +5265,12 @@ int main( int argc, char **argv )
 
 
     std::cout << "Writing vulkan.hpp to " << VULKAN_HPP << std::endl;
+	std::cout << "Writing vulkan.cpp to " << VULKAN_CPP << std::endl;
+
     std::ofstream ofs(VULKAN_HPP);
+	
+	std::ofstream cppofs(VULKAN_CPP);
+
     ofs << generator.getVulkanLicenseHeader() << std::endl
       << R"(
 #ifndef VULKAN_HPP
@@ -5046,7 +5285,6 @@ int main( int argc, char **argv )
 #include <system_error>
 #include <tuple>
 #include <type_traits>
-#include <regex>
 #include <vulkan/vulkan.h>
 #ifndef VULKAN_HPP_DISABLE_ENHANCED_MODE
 # include <memory>
@@ -5073,11 +5311,19 @@ int main( int argc, char **argv )
       << uniqueHandleHeader
       << structureChainHeader;
 
-	// write enum parsing code
-	ofs << enumParseHeader;
-
     // first of all, write out vk::Result and the exception handling stuff
     generator.writeResultEnum(ofs);
+
+	cppofs << generator.getVulkanLicenseHeader() << std::endl
+		<< R"(
+#include <vulkan/vulkan.hpp>
+#include <regex>
+
+)";
+	// write enum parsing code
+	cppofs << enumParseHeader << std::endl
+		<< vkNamespace;
+	generator.writeResultEnumStringify(cppofs);
 
     ofs << "} // namespace VULKAN_HPP_NAMESPACE" << std::endl
       << std::endl
@@ -5096,15 +5342,20 @@ int main( int argc, char **argv )
 
     generator.writeDelegationClassStatic(ofs);
 
-    generator.writeTypes(ofs, defaultValues);
+    generator.writeTypeDeclarations(ofs, defaultValues);
     generator.writeStructureChainValidation(ofs);
-    generator.writeToStringFunctions(ofs);
+	generator.writeToStringFunctionDeclarations(ofs);
 
     generator.writeDelegationClassDynamic(ofs);
 
-    ofs << "} // namespace VULKAN_HPP_NAMESPACE" << std::endl
+	ofs << "} // namespace VULKAN_HPP_NAMESPACE" << std::endl
       << std::endl
       << "#endif" << std::endl;
+
+	generator.writeTypes(cppofs, defaultValues);
+    generator.writeToStringFunctions(cppofs); 
+
+	cppofs << "} // namespace VULKAN_HPP_NAMESPACE" << std::endl;
   }
   catch (std::exception const& e)
   {

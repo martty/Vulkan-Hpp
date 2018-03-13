@@ -36,6 +36,10 @@ file(TO_NATIVE_PATH ${CMAKE_SOURCE_DIR}/include/vulkan/vulkan.hpp vulkan_hpp)
 string(REPLACE "\\" "\\\\" vulkan_hpp ${vulkan_hpp})
 add_definitions(-DVULKAN_HPP="${vulkan_hpp}")
 
+file(TO_NATIVE_PATH ${CMAKE_SOURCE_DIR}/include/vulkan/vulkan.cpp vulkan_cpp)
+string(REPLACE "\\" "\\\\" vulkan_cpp ${vulkan_cpp})
+add_definitions(-DVULKAN_CPP="${vulkan_cpp}")
+
 set(HEADERS
   VulkanHppGenerator.hpp
 )

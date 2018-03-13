@@ -42,10 +42,13 @@ class VulkanHppGenerator
     void readTags(tinyxml2::XMLElement const* element);
     void readTypes(tinyxml2::XMLElement const* element);
     void sortDependencies();
-    void writeResultEnum(std::ostream & os);
+	void writeResultEnum(std::ostream & os);
+    void writeResultEnumStringify(std::ostream & os);
     void writeStructureChainValidation(std::ostream & os);
-    void writeToStringFunctions(std::ostream & os);
-    void writeTypes(std::ostream & os, std::map<std::string, std::string> const& defaultValues);
+    void writeToStringFunctionDeclarations(std::ostream & os);
+	void writeToStringFunctions(std::ostream & os);
+    void writeTypeDeclarations(std::ostream & os, std::map<std::string, std::string> const& defaultValues);
+	void writeTypes(std::ostream & os, std::map<std::string, std::string> const& defaultValues);
     void writeDelegationClassStatic(std::ostream &os);  // use exported symbols from loader
     void writeDelegationClassDynamic(std::ostream &os); // use vkGet*ProcAddress to get function pointers
 #if !defined(NDEBUG)
@@ -241,13 +244,16 @@ class VulkanHppGenerator
     void registerDeleter(CommandData const& commandData);
     void setDefault(std::string const& name, std::map<std::string, std::string> & defaultValues, EnumData const& enumData);
     void writeArguments(std::ostream & os, CommandData const& commandData, bool firstCall, bool singular, size_t from, size_t to);
+	void writeBitmaskToStringDeclaration(std::ostream & os, std::string const& flagsName, EnumData const &enumData);
     void writeBitmaskToString(std::ostream & os, std::string const& flagsName, EnumData const &enumData);
     void writeCall(std::ostream & os, CommandData const& commandData, bool firstCall, bool singular);
     void writeCallCountParameter(std::ostream & os, CommandData const& commandData, bool singular, std::map<size_t, size_t>::const_iterator it);
     void writeCallPlainTypeParameter(std::ostream & os, ParamData const& paramData);
     void writeCallVectorParameter(std::ostream & os, CommandData const& commandData, bool firstCall, bool singular, std::map<size_t, size_t>::const_iterator it);
     void writeCallVulkanTypeParameter(std::ostream & os, ParamData const& paramData);
+    void writeEnumsToStringDeclaration(std::ostream & os, EnumData const& enumData);
     void writeEnumsToString(std::ostream & os, EnumData const& enumData);
+    void writeEnumsFromString(std::ostream & os, EnumData const& enumData);
     void writeExceptionsForEnum(std::ostream & os, EnumData const& enumData);
     void writeFunction(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool definition, bool enhanced, bool singular, bool unique, bool isStructureChain);
     void writeFunctionBodyEnhanced(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool singular, bool unique, bool isStructureChain);
@@ -268,7 +274,9 @@ class VulkanHppGenerator
     void writeFunctionHeaderArgumentsStandard(std::ostream & os, CommandData const& commandData, bool withDefaults);
     void writeFunctionHeaderReturnType(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool enhanced, bool singular, bool unique, bool isStructureChain);
     void writeFunctionHeaderTemplate(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool enhanced, bool unique, bool withDefault, bool isStructureChain);
+    void writeStructConstructorDeclaration(std::ostream & os, std::string const& name, StructData const& structData, std::map<std::string, std::string> const& defaultValues);
     void writeStructConstructor(std::ostream & os, std::string const& name, StructData const& structData, std::map<std::string, std::string> const& defaultValues);
+    void writeStructSetterDeclaration(std::ostream & os, std::string const& structureName, MemberData const& memberData);
     void writeStructSetter(std::ostream & os, std::string const& structureName, MemberData const& memberData);
     void writeStructureChainValidation(std::ostream & os, DependencyData const& dependencyData);
     void writeThrowExceptions(std::ostream& os, EnumData const& enumData);
@@ -278,7 +286,9 @@ class VulkanHppGenerator
     void writeTypeEnum(std::ostream & os, EnumData const& enumData);
     void writeTypeHandle(std::ostream & os, DependencyData const& dependencyData, HandleData const& handle);
     void writeTypeScalar(std::ostream & os, DependencyData const& dependencyData);
+    void writeTypeStructDeclaration(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues);
     void writeTypeStruct(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues);
+    void writeTypeUnionDeclaration(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues);
     void writeTypeUnion(std::ostream & os, DependencyData const& dependencyData, std::map<std::string, std::string> const& defaultValues);
     void writeUniqueTypes(std::ostream &os, std::pair<std::string, std::set<std::string>> const& deleterTypes);
 #if !defined(NDEBUG)
