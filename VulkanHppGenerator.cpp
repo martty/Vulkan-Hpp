@@ -5291,6 +5291,7 @@ int main( int argc, char **argv )
 	cppofs << generator.getVulkanLicenseHeader() << std::endl
 		<< R"(
 #include <vulkan/vulkan.hpp>
+#include <Windows.h>
 #include <regex>
 
 )";
