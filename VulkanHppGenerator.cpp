@@ -36,6 +36,14 @@ namespace VULKAN_HPP_NAMESPACE
 {
 )";
 
+const std::string constExprHeader = R"(
+#if defined(_MSC_VER) && (_MSC_VER <= 1800)
+# define VULKAN_HPP_CONSTEXPR
+#else
+# define VULKAN_HPP_CONSTEXPR constexpr
+#endif
+)";
+
 const std::string enumParseHeader = R"( 
   inline eastl::set<std::string> _parse_enum(const std::string& from) { 
     eastl::set<std::string> out; 
@@ -148,7 +156,7 @@ const std::string flagsHeader = R"(
   class Flags
   {
   public:
-    Flags()
+    VULKAN_HPP_CONSTEXPR Flags()
       : m_mask(0)
     {
     }
@@ -293,7 +301,7 @@ const std::string arrayProxyHeader = R"(
   class ArrayProxy
   {
   public:
-    ArrayProxy(std::nullptr_t)
+    VULKAN_HPP_CONSTEXPR ArrayProxy(std::nullptr_t)
       : m_count(0)
       , m_ptr(nullptr)
     {}
@@ -408,6 +416,11 @@ const std::string structureChainHeader = R"(
       linkAndCopy<StructureElements...>(rhs);
     }
 
+    StructureChain(StructureElements const &... elems)
+    {
+      linkAndCopyElements<StructureElements...>(elems...);
+    }
+
     StructureChain& operator=(StructureChain const &rhs)
     {
       linkAndCopy<StructureElements...>(rhs);
@@ -449,7 +462,24 @@ const std::string structureChainHeader = R"(
       linkAndCopy<Y, Z...>(rhs);
     }
 
-};
+    template<typename X>
+    void linkAndCopyElements(X const &xelem)
+    {
+      static_cast<X&>(*this) = xelem;
+    }
+
+    template<typename X, typename Y, typename ...Z>
+    void linkAndCopyElements(X const &xelem, Y const &yelem, Z const &... zelem)
+    {
+      static_assert(isStructureChainValid<X,Y>::value, "The structure chain is not valid!");
+      X& x = static_cast<X&>(*this);
+      Y& y = static_cast<Y&>(*this);
+      x = xelem;
+      x.pNext = &y;
+      linkAndCopyElements<Y, Z...>(yelem, zelem...);
+    }
+  };
+
 )";
 
 const std::string versionCheckHeader = R"(
@@ -959,8 +989,7 @@ void checkElements(std::vector<tinyxml2::XMLElement const*> const& elements, std
       std::stringstream ss;
       ss << e->GetLineNum();
       std::string lineNumber = ss.str();
-      assert(false);
-      throw std::runtime_error("Spec error on line " + lineNumber + ": unexpected element value <" + e->Value() + ">");
+      std::cerr << "Unknown element in spec on line: " << lineNumber << " " << e->Value() << std::endl;
     }
   }
 }
@@ -1578,6 +1607,23 @@ std::string const& VulkanHppGenerator::getVulkanLicenseHeader() const
   return m_vulkanLicenseHeader;
 }
 
+bool VulkanHppGenerator::isSubStruct(std::pair<std::string, StructData> const& nsd, std::string const& name, StructData const& structData)
+{
+  if ((nsd.first != name) && (nsd.second.members.size() < structData.members.size()) && (structData.members[0].name != "sType"))
+  {
+    bool equal = true;
+    for (size_t i = 0; i < nsd.second.members.size() && equal; i++)
+    {
+      equal = (nsd.second.members[i].type == structData.members[i].type) && (nsd.second.members[i].name == structData.members[i].name);
+    }
+    if (equal)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 void VulkanHppGenerator::linkCommandToHandle(CommandData & commandData)
 {
   // first, find the handle named like the type of the first argument
@@ -1651,7 +1697,7 @@ tinyxml2::XMLNode const* VulkanHppGenerator::readCommandParamType(tinyxml2::XMLN
   {
     // start type with "const" or "struct", if needed
     std::string value = trim(node->Value());
-    assert((value == "const") || (value == "struct"));
+    assert((value == "const") || (value == "struct") || (value == "const struct"));
     param.type = value + " ";
     node = node->NextSibling();
     assert(node);
@@ -1813,9 +1859,10 @@ void VulkanHppGenerator::readComment(tinyxml2::XMLElement const* element)
     m_vulkanLicenseHeader = text;
 
     // erase the part after the Copyright text
-    size_t pos = m_vulkanLicenseHeader.find("\n\n-----");
-    assert(pos != std::string::npos);
-    m_vulkanLicenseHeader.erase(pos);
+    size_t pos = m_vulkanLicenseHeader.find("\n\n------------------------------------------------------------------------");
+    if (pos != std::string::npos) {
+      m_vulkanLicenseHeader.erase(pos);
+    }
 
     // replace any '\n' with "\n// "
     for (size_t pos = m_vulkanLicenseHeader.find('\n'); pos != std::string::npos; pos = m_vulkanLicenseHeader.find('\n', pos + 1))
@@ -2135,6 +2182,7 @@ void VulkanHppGenerator::readExtensionsExtension(tinyxml2::XMLElement const* ele
     { "platform",{} },
     { "protect",{} },
     { "requires",{} },
+    { "requiresCore",{} },
     { "type",{ "device", "instance" } }
   });
   std::vector<tinyxml2::XMLElement const*> children = getChildElements(element);
@@ -2701,6 +2749,15 @@ void VulkanHppGenerator::readTypeStruct(tinyxml2::XMLElement const* element, boo
 
     assert(m_vkTypes.find(name) == m_vkTypes.end());
     m_vkTypes.insert(name);
+
+    for (auto const& s : m_structs)
+    {
+      if (isSubStruct(s, name, it->second))
+      {
+        it->second.subStruct = s.first;
+        break;    // just take the very first candidate as a subStruct, skip any possible others!
+      }
+    }
   }
 }
 
@@ -2737,7 +2794,7 @@ void VulkanHppGenerator::readTypeStructMember(tinyxml2::XMLElement const* elemen
   if (child->ToText())
   {
     std::string value = trim(child->Value());
-    assert((value == "const") || (value == "struct"));
+    assert((value == "const") || (value == "struct") || value == "const struct");
     member.type = value + " ";
     child = child->NextSibling();
     assert(child);
@@ -2835,7 +2892,8 @@ void VulkanHppGenerator::sortDependencies()
             if (depIt->dependencies.find(it->name) != depIt->dependencies.end())
             {
               // we only have just one case, for now!
-              assert((it->category == DependencyData::Category::HANDLE) && (depIt->category == DependencyData::Category::STRUCT));
+              assert((it->category == DependencyData::Category::HANDLE) && (depIt->category == DependencyData::Category::STRUCT)
+              || (it->category == DependencyData::Category::STRUCT) && (depIt->category == DependencyData::Category::STRUCT));
               it->forwardDependencies.insert(*dit);
               it->dependencies.erase(*dit);
               found = true;
@@ -3030,8 +3088,8 @@ void VulkanHppGenerator::writeCallPlainTypeParameter(std::ostream & os, ParamDat
       }
       else
       {
-        // it's const pointer to void (only other type that occurs) -> just use the name
-        assert((paramData.pureType == "void") && !paramData.optional);
+        // it's const pointer to something else -> just use the name
+        assert(!paramData.optional);
         os << paramData.name;
       }
     }
@@ -4215,7 +4273,20 @@ void VulkanHppGenerator::writeStructureChainValidation(std::ostream & os, Depend
     for (auto extendName : it->second.structExtends)
     {
       std::map<std::string, StructData>::const_iterator itExtend = m_structs.find(extendName);
-      assert(itExtend != m_structs.end());
+      if (itExtend == m_structs.end()) {
+        std::stringstream errorString;
+        errorString << extendName << " does not specify a struct in structextends field.";
+
+        // check if symbol name is an alias to a struct
+        auto itAlias = std::find_if(m_structs.begin(), m_structs.end(), [&extendName](std::pair<std::string, StructData> const &it) -> bool {return it.second.alias == extendName;});
+        if (itAlias != m_structs.end())
+        {
+          errorString << " The symbol is an alias and maps to " << itAlias->first << ".";
+        }
+
+        errorString << std::endl;
+        throw std::runtime_error(errorString.str());
+      }
       enterProtect(os, itExtend->second.protect);
 
       os << "  template <> struct isStructureChainValid<" << extendName << ", " << dependencyData.name << ">{ enum { value = true }; };" << std::endl;
@@ -4414,6 +4485,7 @@ void VulkanHppGenerator::writeTypeCommand(std::ostream & os, std::string const& 
   writeStandardOrEnhanced(os, standard.str(), enhanced.str());
 
   leaveProtect(os, commandData.protect);
+  os << std::endl;
 }
 
 void VulkanHppGenerator::writeTypeEnum(std::ostream & os, EnumData const& enumData)
@@ -4472,11 +4544,11 @@ void VulkanHppGenerator::writeTypeHandle(std::ostream & os, DependencyData const
     R"(  class ${className}
   {
   public:
-    ${className}()
+    VULKAN_HPP_CONSTEXPR ${className}()
       : m_${memberName}(VK_NULL_HANDLE)
     {}
 
-    ${className}( std::nullptr_t )
+    VULKAN_HPP_CONSTEXPR ${className}( std::nullptr_t )
       : m_${memberName}(VK_NULL_HANDLE)
     {}
 
@@ -4726,13 +4798,17 @@ void VulkanHppGenerator::writeTypeStructDeclaration(std::ostream & os, Dependenc
     if (it->second.members[i].type == "StructureType")
     {
       assert((i == 0) && (it->second.members[i].name == "sType"));
-      assert(!it->second.members[i].values.empty());
-      auto nameIt = m_nameMap.find(it->second.members[i].values);
-      assert(nameIt != m_nameMap.end());
-      os << "  private:" << std::endl
-        << "    StructureType sType = " << nameIt->second << ";" << std::endl
-        << std::endl
-        << "  public:" << std::endl;
+	  if (!it->second.members[i].values.empty()) {
+		  assert(!it->second.members[i].values.empty());
+		  auto nameIt = m_nameMap.find(it->second.members[i].values);
+		  assert(nameIt != m_nameMap.end());
+		  os << "  private:" << std::endl
+			  << "    StructureType sType = " << nameIt->second << ";" << std::endl
+			  << std::endl
+			  << "  public:" << std::endl;
+	  } else {
+		  os << "    StructureType sType;" << std::endl;
+	  }
     }
     else
     {
@@ -5162,6 +5238,7 @@ int main( int argc, char **argv )
 
     std::string filename = (argc == 1) ? VK_SPEC : argv[1];
     std::cout << "Loading vk.xml from " << filename << std::endl;
+    std::cout << "Writing vulkan.hpp to " << VULKAN_HPP << std::endl;
 
     tinyxml2::XMLError error = doc.LoadFile(filename.c_str());
     if (error != tinyxml2::XML_SUCCESS)
@@ -5171,6 +5248,8 @@ int main( int argc, char **argv )
     }
 
     VulkanHppGenerator generator;
+
+    bool foundLicense = false;
 
     tinyxml2::XMLElement const* registryElement = doc.FirstChildElement();
     checkAttributes(getAttributes(registryElement), registryElement->GetLineNum(), {}, {});
@@ -5188,8 +5267,12 @@ int main( int argc, char **argv )
       }
       else if (value == "comment")
       {
-        // get the vulkan license header and skip any leading spaces
-        generator.readComment(child);
+        if (!foundLicense)
+        {
+          // get the vulkan license header and skip any leading spaces
+          generator.readComment(child);
+          foundLicense = true;
+        }
       }
       else if (value == "enums")
       {
@@ -5225,7 +5308,7 @@ int main( int argc, char **argv )
       {
         std::stringstream lineNumber;
         lineNumber << child->GetLineNum();
-        throw std::runtime_error(std::string("unknown tag ") + value + " at line number:" + lineNumber.str());
+        std::cerr << "Unhandled tag " << value << " at line number: " << lineNumber.str() << std::endl;
       }
     }
 
@@ -5237,18 +5320,14 @@ int main( int argc, char **argv )
 
     std::map<std::string, std::string> defaultValues = generator.createDefaults();
 
-
-    std::cout << "Writing vulkan.hpp to " << VULKAN_HPP << std::endl;
-	std::cout << "Writing vulkan.cpp to " << VULKAN_CPP << std::endl;
-
     std::ofstream ofs(VULKAN_HPP);
-	
-	std::ofstream cppofs(VULKAN_CPP);
+    std::ofstream cppofs(VULKAN_CPP);
 
     ofs << generator.getVulkanLicenseHeader() << std::endl
       << R"(
 #ifndef VULKAN_HPP
 #define VULKAN_HPP
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -5277,6 +5356,7 @@ int main( int argc, char **argv )
     ofs << versionCheckHeader
       << inlineHeader
       << explicitHeader
+      << constExprHeader
       << std::endl
       << vkNamespace
       << flagsHeader

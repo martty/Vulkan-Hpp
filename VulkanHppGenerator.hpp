@@ -189,6 +189,7 @@ class VulkanHppGenerator
       std::string               protect;
       std::vector<std::string>  structExtends;
       std::string               alias;
+      std::string               subStruct;
     };
 
 #if !defined(NDEBUG)
@@ -216,6 +217,7 @@ class VulkanHppGenerator
     void determineTemplateParam(CommandData & commandData);
     void determineVectorParams(CommandData & commandData);
     std::string generateCall(CommandData const& commandData, bool firstCall, bool singular);
+    bool isSubStruct(std::pair<std::string, StructData> const& nsd, std::string const& name, StructData const& structData);
     void linkCommandToHandle(CommandData & commandData);
     bool readCommandParam(tinyxml2::XMLElement const* element, std::set<std::string> & dependencies, std::vector<ParamData> & params);
     tinyxml2::XMLNode const* readCommandParamType(tinyxml2::XMLNode const* node, ParamData& param);

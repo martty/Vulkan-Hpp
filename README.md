@@ -1,3 +1,4 @@
+==== BASE ====
 # Vulkan-Hpp: C++ Bindings for Vulkan
 
 The goal of the Vulkan-Hpp is to provide header only C++ bindings for the Vulkan C API to improve the developers Vulkan experience without introducing CPU runtime cost. It adds features like type safety for enums and bitfields, STL container support, exceptions and simple enumerations.
@@ -23,7 +24,7 @@ Vulkan-Hpp requires a C++11 capable compiler to compile. The following compilers
 
 To avoid name collisions with the Vulkan C API the C++ bindings reside in the vk namespace. The following rules apply to the new naming
 
-* All functions, enums, handles, and structs have the Vk prefix removed. In addition to this the first leter of functions is lower case.
+* All functions, enums, handles, and structs have the Vk prefix removed. In addition to this the first letter of functions is lower case.
   * `vkCreateImage` can be accessed as `vk::createImage`
   * `VkImageTiling` can be accessed as `vk::ImageTiling`
   * `VkImageCreateInfo` can be accessed as `vk::ImageCreateInfo`
@@ -182,6 +183,15 @@ vk::MemoryAllocateInfo &allocInfo = c.get<vk::MemoryAllocateInfo>();
 vk::ImportMemoryFdInfoKHR &fdInfo = c.get<vk::ImportMemoryFdInfoKHR>();
 ```
 
+Vulkan-Hpp provides a constructor for these chains similar to the CreateInfo objects which accepts a list of all structures part of the chain. The `pNext` field is automatically set to the correct value:
+
+```c++
+vk::StructureChain<vk::MemoryAllocateInfo, vk::MemoryDedicatedAllocateInfo> c = {
+  vk::MemoryAllocateInfo(size, type),
+  vk::MemoryDedicatedAllocateInfo(image)
+};
+```
+
 Sometimes the user has to pass a preallocated structure chain to query information. In those cases the corresponding query functions are variadic templates and do accept a structure chain to construct the return value:
 
 ```
@@ -305,7 +315,7 @@ std::vector<LayerProperties> properties = physicalDevice.enumerateDeviceLayerPro
 
 ### UniqueHandle for automatic resource management
 
-Vulkan-Hpp provides a `vk::UniqueHandle<Type, Deleter>` interface. For each Vulkan handle type `vk::Type` there is a unqiue handle `vk::UniqueType` which will delete the underlying Vulkan resource upon destruction, e.g. `vk::UniqueBuffer ` is the unique handle for `vk::Buffer`.
+Vulkan-Hpp provides a `vk::UniqueHandle<Type, Deleter>` interface. For each Vulkan handle type `vk::Type` there is a unique handle `vk::UniqueType` which will delete the underlying Vulkan resource upon destruction, e.g. `vk::UniqueBuffer ` is the unique handle for `vk::Buffer`.
 
 For each function which constructs a Vulkan handle of type `vk::Type` Vulkan-Hpp provides a second version which returns a `vk::UniqueType`. E.g. for `vk::Device::createBuffer` there is `vk::Device::createBufferUnique` and for `vk::allocateCommandBuffers` there is `vk::allocateCommandBuffersUnique`.
 
@@ -344,6 +354,7 @@ device.getQueue(graphics_queue_family_index, 0, &graphics_queue, dldid);
 
 Feel free to submit a PR to add to this list.
 
+- [Examples](https://github.com/jherico/vulkan) A port of Sascha Willems [examples](https://github.com/SaschaWillems/Vulkan) to Vulkan-Hpp 
 - [Vookoo](https://github.com/andy-thomason/Vookoo/) Stateful helper classes for Vulkan-Hpp, [Introduction Article](https://accu.org/index.php/journals/2380).
 
 ## License
@@ -362,3 +373,4 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+==== BASE ====
