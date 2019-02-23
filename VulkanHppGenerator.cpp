@@ -54,7 +54,7 @@ const std::string enumParseHeader = R"(
  
     for (std::sregex_iterator i = words_begin; i != words_end; ++i) { 
       auto match = *i; 
-      assert(match.size() == 2); 
+      VULKAN_HPP_ASSERT(match.size() == 2); 
       if(match[1].str() != "") 
         out.insert(match[1].str()); 
     } 
@@ -5345,10 +5345,8 @@ int main( int argc, char **argv )
 # include <EASTL/vector.h>
 # include <EASTL/set.h>
 #endif /*VULKAN_HPP_DISABLE_ENHANCED_MODE*/
-#if !defined(VULKAN_HPP_ASSERT)
-# include <cassert>
-# define VULKAN_HPP_ASSERT   assert
-#endif
+#include "assert.hpp"
+#define VULKAN_HPP_ASSERT   pkyassert
 )";
 
     writeVersionCheck(ofs, generator.getVersion());
@@ -5373,7 +5371,6 @@ int main( int argc, char **argv )
 #include <vulkan/vulkan.hpp>
 #include <Windows.h>
 #include <regex>
-
 )";
 	// write enum parsing code
 	cppofs << enumParseHeader << std::endl
