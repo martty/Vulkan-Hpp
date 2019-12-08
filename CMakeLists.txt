@@ -74,8 +74,8 @@ add_executable(VulkanHppGenerator
 set_property(TARGET VulkanHppGenerator PROPERTY CXX_STANDARD 11)
 
 target_include_directories(VulkanHppGenerator PRIVATE tinyxml2)
-#ADD_CUSTOM_COMMAND( TARGET VulkanHppGenerator
-#					POST_BUILD
-#                    COMMAND VulkanHppGenerator
-#					WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/ext/Vulkan-Hpp
-#                    COMMENT "Generating vulkan.hpp" )
+ADD_CUSTOM_COMMAND( TARGET VulkanHppGenerator
+					POST_BUILD
+                    COMMAND VulkanHppGenerator
+					WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/ext/Vulkan-Hpp
+                    COMMENT "Generating vulkan.hpp" )

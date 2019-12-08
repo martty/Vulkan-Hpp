@@ -42,6 +42,7 @@ class VulkanHppGenerator
     void readTags(tinyxml2::XMLElement const* element);
     void readTypes(tinyxml2::XMLElement const* element);
     void sortDependencies();
+	void writeResultEnumDeclaration(std::ostream & os);
 	void writeResultEnum(std::ostream & os);
     void writeResultEnumStringify(std::ostream & os);
     void writeStructureChainValidation(std::ostream & os);
@@ -256,6 +257,7 @@ class VulkanHppGenerator
     void writeEnumsToStringDeclaration(std::ostream & os, EnumData const& enumData);
     void writeEnumsToString(std::ostream & os, EnumData const& enumData);
     void writeEnumsFromString(std::ostream & os, EnumData const& enumData);
+    void writeExceptionsForEnumDeclaration(std::ostream & os, EnumData const& enumData);
     void writeExceptionsForEnum(std::ostream & os, EnumData const& enumData);
     void writeFunction(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool definition, bool enhanced, bool singular, bool unique, bool isStructureChain);
     void writeFunctionBodyEnhanced(std::ostream & os, std::string const& indentation, CommandData const& commandData, bool singular, bool unique, bool isStructureChain);

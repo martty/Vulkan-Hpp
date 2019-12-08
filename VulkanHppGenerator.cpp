@@ -3256,17 +3256,42 @@ void VulkanHppGenerator::writeEnumsFromString(std::ostream & os, EnumData const&
 }
 
 // Intended only for `enum class Result`!
-void VulkanHppGenerator::writeExceptionsForEnum(std::ostream & os, EnumData const& enumData)
+void VulkanHppGenerator::writeExceptionsForEnumDeclaration(std::ostream & os, EnumData const& enumData)
 {
   std::string templateString =
     R"(  class ${className} : public SystemError
   {
   public:
-    ${className}( std::string const& message )
-      : SystemError( make_error_code( ${enumName}::${enumMemberName} ), message ) {}
-    ${className}( char const * message )
-      : SystemError( make_error_code( ${enumName}::${enumMemberName} ), message ) {}
+    ${className}( std::string const& message );
+    ${className}( char const * message );
   };
+)";
+
+  enterProtect(os, enumData.protect);
+  for (size_t i = 0; i < enumData.values.size(); i++)
+  {
+    if (!isErrorEnum(enumData.values[i].name))
+    {
+      continue;
+    }
+    os << replaceWithMap(templateString,
+    { { "className", stripErrorEnumPrefix(enumData.values[i].name) + "Error" },
+    { "enumName", enumData.name },
+    { "enumMemberName", enumData.values[i].name }
+    });
+  }
+  leaveProtect(os, enumData.protect);
+  os << std::endl;
+}
+
+
+
+// Intended only for `enum class Result`!
+void VulkanHppGenerator::writeExceptionsForEnum(std::ostream & os, EnumData const& enumData)
+{
+  std::string templateString =
+    R"(${className}::${className}( std::string const& message ) : SystemError( make_error_code( ${enumName}::${enumMemberName} ), message ) {}
+	${className}::${className}( char const * message ) : SystemError( make_error_code( ${enumName}::${enumMemberName} ), message ) {}
 )";
 
   enterProtect(os, enumData.protect);
@@ -4034,7 +4059,7 @@ void VulkanHppGenerator::writeFunctionHeaderTemplate(std::ostream & os, std::str
   }
 }
 
-void VulkanHppGenerator::writeResultEnum(std::ostream & os)
+void VulkanHppGenerator::writeResultEnumDeclaration(std::ostream & os)
 {
   std::list<DependencyData>::const_iterator it = std::find_if(m_dependencies.begin(), m_dependencies.end(), [](DependencyData const& dp) { return dp.name == "Result"; });
   assert(it != m_dependencies.end());
@@ -4043,8 +4068,17 @@ void VulkanHppGenerator::writeResultEnum(std::ostream & os)
   os << "#ifndef VULKAN_HPP_NO_EXCEPTIONS";
   os << exceptionHeader;
   os << exceptionClassesHeader;
-  writeExceptionsForEnum(os, m_enums.find(it->name)->second);
+  writeExceptionsForEnumDeclaration(os, m_enums.find(it->name)->second);
   writeThrowExceptions(os, m_enums.find(it->name)->second);
+  os << "#endif" << std::endl;
+}
+
+void VulkanHppGenerator::writeResultEnum(std::ostream & os)
+{
+  std::list<DependencyData>::const_iterator it = std::find_if(m_dependencies.begin(), m_dependencies.end(), [](DependencyData const& dp) { return dp.name == "Result"; });
+  assert(it != m_dependencies.end());
+  os << "#ifndef VULKAN_HPP_NO_EXCEPTIONS\n";
+  writeExceptionsForEnum(os, m_enums.find(it->name)->second);
   os << "#endif" << std::endl;
 }
 
@@ -5364,7 +5398,7 @@ int main( int argc, char **argv )
       << structureChainHeader;
 
     // first of all, write out vk::Result and the exception handling stuff
-    generator.writeResultEnum(ofs);
+    generator.writeResultEnumDeclaration(ofs);
 
 	cppofs << generator.getVulkanLicenseHeader() << std::endl
 		<< R"(
@@ -5375,6 +5409,7 @@ int main( int argc, char **argv )
 	// write enum parsing code
 	cppofs << enumParseHeader << std::endl
 		<< vkNamespace;
+	generator.writeResultEnum(cppofs);
 	generator.writeResultEnumStringify(cppofs);
 
     ofs << "} // namespace VULKAN_HPP_NAMESPACE" << std::endl
